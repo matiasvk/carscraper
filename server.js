@@ -50,6 +50,8 @@ app.get('/api/cars/:make/:model', async (req, res) => {
                     
                     carsData = itemListElements.map(element => {
                         const item = element.item || {};
+                        const priceValue = item.offers?.price != null ? Number(item.offers.price) : null;
+                        const mileageValue = item.mileageFromOdometer?.value;
                         return {
                             position: element.position,
                             name: item.name || 'N/A',
@@ -57,9 +59,9 @@ app.get('/api/cars/:make/:model', async (req, res) => {
                             model: item.model || model,
                             year: item.name ? extractYear(item.name) : 'N/A',
                             price: item.offers ? `${item.offers.price} ${item.offers.priceCurrency}` : 'N/A',
-                            priceValue: item.offers ? item.offers.price : null,
+                            priceValue: Number.isFinite(priceValue) ? priceValue : null,
                             currency: item.offers ? item.offers.priceCurrency : 'EUR',
-                            mileageKm: item.mileageFromOdometer ? item.mileageFromOdometer.value : 0,
+                            mileageKm: mileageValue != null && Number.isFinite(Number(mileageValue)) ? Number(mileageValue) : null,
                             fuelType: item.fuelType || 'N/A',
                             transmission: item.vehicleTransmission || 'N/A',
                             bodyType: item.bodyType || 'N/A',
@@ -86,6 +88,13 @@ app.get('/api/cars/:make/:model', async (req, res) => {
         const safePage = Math.min(page, totalPages);
         const start = (safePage - 1) * limit;
         const paginatedData = carsData.slice(start, start + limit);
+        const prices = carsData
+            .map(car => car.priceValue)
+            .filter(value => Number.isFinite(value) && value >= 0);
+        const mileages = carsData
+            .map(car => car.mileageKm)
+            .filter(value => Number.isFinite(value) && value >= 0);
+        const pricedCars = carsData.filter(car => Number.isFinite(car.priceValue) && car.priceValue >= 0);
 
         res.json({
             success: true,
@@ -93,6 +102,22 @@ app.get('/api/cars/:make/:model', async (req, res) => {
             limit,
             totalPages,
             count: carsData.length,
+            analysis: {
+                averagePrice: prices.length
+                    ? prices.reduce((sum, value) => sum + value, 0) / prices.length
+                    : null,
+                averageMileageKm: mileages.length
+                    ? mileages.reduce((sum, value) => sum + value, 0) / mileages.length
+                    : null,
+                cheapest: pricedCars.reduce(
+                    (cheapest, car) => car.priceValue < cheapest.priceValue ? car : cheapest,
+                    pricedCars[0] || null
+                ),
+                mostExpensive: pricedCars.reduce(
+                    (mostExpensive, car) => car.priceValue > mostExpensive.priceValue ? car : mostExpensive,
+                    pricedCars[0] || null
+                )
+            },
             data: paginatedData
         });
 

@@ -119,6 +119,36 @@
             </div>
         </div>
 
+        <section id="analysisPanel" class="hidden bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80" aria-labelledby="analysisHeading">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-5">
+                <div>
+                    <h2 id="analysisHeading" class="text-base font-bold text-slate-900">Hakutulosten analyysi</h2>
+                    <p id="analysisSampleSize" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <span class="text-xs text-slate-400">Lasketaan ilmoituksista, joista tieto löytyy</span>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div class="rounded-xl bg-indigo-50 p-4">
+                    <p class="text-xs font-medium text-indigo-700">Keskihinta</p>
+                    <p id="averagePrice" class="mt-2 text-xl font-bold text-indigo-900">—</p>
+                </div>
+                <div class="rounded-xl bg-sky-50 p-4">
+                    <p class="text-xs font-medium text-sky-700">Keskimääräiset kilometrit</p>
+                    <p id="averageMileage" class="mt-2 text-xl font-bold text-sky-900">—</p>
+                </div>
+                <div class="rounded-xl bg-emerald-50 p-4">
+                    <p class="text-xs font-medium text-emerald-700">Halvin ilmoitus</p>
+                    <p id="cheapestPrice" class="mt-2 text-xl font-bold text-emerald-900">—</p>
+                    <p id="cheapestDetails" class="mt-1 text-xs text-emerald-800"></p>
+                </div>
+                <div class="rounded-xl bg-amber-50 p-4">
+                    <p class="text-xs font-medium text-amber-700">Kallein ilmoitus</p>
+                    <p id="mostExpensivePrice" class="mt-2 text-xl font-bold text-amber-900">—</p>
+                    <p id="mostExpensiveDetails" class="mt-1 text-xs text-amber-800"></p>
+                </div>
+            </div>
+        </section>
+
         <!-- Initial / Empty / Loading State Container -->
         <div id="stateContainer" class="flex-grow flex flex-col items-center justify-center bg-white rounded-2xl p-12 border border-slate-200/80 shadow-sm text-center min-h-[400px]">
             <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-4 shadow-inner">
@@ -223,6 +253,7 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
         let currentPage = 1;
         let totalPages = 1;
         let totalResults = 0;
+        let searchAnalysis = null;
 
         function setPreset(make, model) {
             document.getElementById('makeInput').value = make;
@@ -245,6 +276,7 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
             const listingsGrid = document.getElementById('listingsGrid');
             const controlsToolbar = document.getElementById('controlsToolbar');
             const paginationContainer = document.getElementById('paginationContainer');
+            const analysisPanel = document.getElementById('analysisPanel');
 
             if (!make || !model) {
                 alert('Syötä sekä merkki että malli.');
@@ -255,6 +287,7 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
             listingsGrid.classList.add('hidden');
             controlsToolbar.classList.add('hidden');
             if (paginationContainer) paginationContainer.classList.add('hidden');
+            analysisPanel.classList.add('hidden');
             
             stateContainer.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-12">
@@ -278,12 +311,15 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
                 currentPage = json.page;
                 totalPages = json.totalPages;
                 totalResults = json.count;
+                searchAnalysis = json.analysis;
                 document.getElementById('resultsHeading').textContent = `Hakutulokset: ${make.toUpperCase()} ${model.toUpperCase()}`;
                 
                 stateContainer.classList.add('hidden');
                 listingsGrid.classList.remove('hidden');
                 controlsToolbar.classList.remove('hidden');
+                analysisPanel.classList.remove('hidden');
 
+                renderAnalysis();
                 applyFiltersAndSort();
 
             } catch (error) {
@@ -334,6 +370,36 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
             document.getElementById('resultsCountBadge').innerText = `${filtered.length} näytetään sivulla / ${totalResults} yhteensä • Sivu ${currentPage}/${totalPages}`;
             renderListings(filtered);
             renderPaginationControls(totalPages);
+        }
+
+        function formatPrice(value) {
+            return Number.isFinite(value) ? `${Math.round(value).toLocaleString('fi-FI')} €` : 'Ei hintatietoa';
+        }
+
+        function formatMileage(value) {
+            return Number.isFinite(value) ? `${Math.round(value).toLocaleString('fi-FI')} km` : 'Ei kilometritietoa';
+        }
+
+        function renderAnalysis() {
+            const analysis = searchAnalysis;
+            document.getElementById('analysisSampleSize').textContent =
+                `Perustuu ${totalResults} ilmoitukseen. Hinta- ja kilometrikeskiarvot huomioivat vain ilmoitukset, joissa kyseinen tieto on saatavilla.`;
+            document.getElementById('averagePrice').textContent =
+                analysis && analysis.averagePrice != null ? formatPrice(analysis.averagePrice) : 'Ei hintatietoja';
+            document.getElementById('averageMileage').textContent =
+                analysis && analysis.averageMileageKm != null ? formatMileage(analysis.averageMileageKm) : 'Ei kilometrimäärätietoja';
+
+            const cheapest = analysis?.cheapest;
+            document.getElementById('cheapestPrice').textContent =
+                cheapest ? formatPrice(cheapest.priceValue) : 'Ei hintatietoja';
+            document.getElementById('cheapestDetails').textContent =
+                cheapest ? `${cheapest.name} · ${formatMileage(cheapest.mileageKm)}` : '';
+
+            const mostExpensive = analysis?.mostExpensive;
+            document.getElementById('mostExpensivePrice').textContent =
+                mostExpensive ? formatPrice(mostExpensive.priceValue) : 'Ei hintatietoja';
+            document.getElementById('mostExpensiveDetails').textContent =
+                mostExpensive ? `${mostExpensive.name} · ${formatMileage(mostExpensive.mileageKm)}` : '';
         }
 
         function renderPaginationControls(totalPages) {
