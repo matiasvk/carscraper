@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nettiauto Selaaja</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col font-sans antialiased">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-md flex items-center justify-center">
+                    <i class="fa-solid fa-car text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-slate-900">Nettiauto Selaaja</h1>
+                    <p class="text-xs text-slate-500">Reaaliaikainen JSON-LD -autojen hakutyökalu</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleServerModal(true)" class="inline-flex items-center space-x-2 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg transition-colors border border-slate-200">
+                    <i class="fa-solid fa-code text-indigo-600"></i>
+                    <span>Näytä palvelinkoodi</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col space-y-6">
+
+        <!-- Search & Filter Card -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 transition-all">
+            <div class="flex flex-col md:flex-row md:items-end gap-4">
+                <!-- Make Input -->
+                <div class="flex-1">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Merkki</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-industry"></i>
+                        </span>
+                        <input type="text" id="makeInput" placeholder="esim. bmw, audi, volkswagen" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                    </div>
+                </div>
+
+                <!-- Model Input -->
+                <div class="flex-1">
+                    <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Malli</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-car-side"></i>
+                        </span>
+                        <input type="text" id="modelInput" placeholder="esim. 325, a4, golf" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+                    </div>
+                </div>
+
+                <!-- Search Button -->
+                <div>
+                    <button onclick="fetchCars()" id="searchBtn" class="w-full md:w-auto inline-flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-xl shadow-md hover:shadow-lg transition-all text-sm">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <span>Hae autoja</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Preset Quick Tags -->
+            <div class="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-medium text-slate-400 mr-1">Pikavalinnat:</span>
+                <button onclick="setPreset('bmw', '325')" class="text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 px-3 py-1.5 rounded-lg transition-colors border border-slate-200">BMW 325</button>
+                <button onclick="setPreset('audi', 'a4')" class="text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 px-3 py-1.5 rounded-lg transition-colors border border-slate-200">Audi A4</button>
+                <button onclick="setPreset('volkswagen', 'golf')" class="text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 px-3 py-1.5 rounded-lg transition-colors border border-slate-200">VW Golf</button>
+                <button onclick="setPreset('volvo', 'v70')" class="text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 px-3 py-1.5 rounded-lg transition-colors border border-slate-200">Volvo V70</button>
+                <button onclick="setPreset('mercedes-benz', 'c')" class="text-xs bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 px-3 py-1.5 rounded-lg transition-colors border border-slate-200">Mercedes-Benz C</button>
+            </div>
+        </div>
+
+        <!-- Controls Toolbar (Filters & Sorters) -->
+        <div id="controlsToolbar" class="hidden flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80">
+            <!-- Results Count & Title -->
+            <div class="flex items-center space-x-2">
+                <span id="resultsCountBadge" class="bg-indigo-50 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-full">0 löytyi</span>
+                <h2 id="resultsHeading" class="text-sm font-semibold text-slate-700">Hakutulokset</h2>
+            </div>
+
+            <!-- Filters & Sorting Group -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Keyword Filter -->
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
+                        <i class="fa-solid fa-filter"></i>
+                    </span>
+                    <input type="text" id="keywordFilter" oninput="applyFiltersAndSort()" placeholder="Suodata tuloksia..." class="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <!-- Sort Selector -->
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-500 font-medium">Järjestä:</span>
+                    <select id="sortSelect" onchange="applyFiltersAndSort()" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="default">Oletusjärjestys</option>
+                        <option value="price-asc">Hinta: Halvin ensin</option>
+                        <option value="price-desc">Hinta: Kallein ensin</option>
+                        <option value="year-desc">Uusin vuosimalli</option>
+                        <option value="mileage-asc">Pienimmät kilometrit</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Initial / Empty / Loading State Container -->
+        <div id="stateContainer" class="flex-grow flex flex-col items-center justify-center bg-white rounded-2xl p-12 border border-slate-200/80 shadow-sm text-center min-h-[400px]">
+            <div class="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 mb-4 shadow-inner">
+                <i class="fa-solid fa-car text-2xl"></i>
+            </div>
+            <h3 class="text-base font-semibold text-slate-800 mb-1">Valmis selaamaan Nettiauton ilmoituksia</h3>
+            <p class="text-sm text-slate-500 max-w-md mx-auto mb-6">Syötä auton merkki ja malli yllä olevaan hakuun tai valitse pikavalinta nähdäksesi tulokset heti.</p>
+            <button onclick="setPreset('bmw', '325'); fetchCars();" class="inline-flex items-center space-x-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium px-4 py-2 rounded-xl text-xs transition-colors">
+                <span>Kokeile esimerkkihakua (BMW 325)</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- Listings Grid -->
+        <div id="listingsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+            <!-- Cards inserted via JS -->
+        </div>
+
+        <div id="paginationContainer" class="mt-6 hidden"></div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-xs text-slate-400">
+            Nettiauto Selaaja &bull; Toteutettu Node.js-taustapalvelulla ja JSON-LD-jäsentimellä
+        </div>
+    </footer>
+
+    <!-- Server Code Modal -->
+    <div id="serverModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 rounded-full bg-red-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-amber-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-emerald-400"></div>
+                    <span class="text-xs font-mono font-medium text-slate-600 ml-2">server.js-määritys</span>
+                </div>
+                <button onclick="toggleServerModal(false)" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto font-mono text-xs bg-slate-900 text-emerald-400">
+                <pre><code>const express = require('express');
+const axios = require('axios');
+const cheerio = require('cheerio');
+const cors = require('cors'); // npm install cors
+
+const app = express();
+app.use(cors()); // Salli yhteydet selaimesta
+
+app.get('/api/cars/:make/:model', async (req, res) => {
+    const { make, model } = req.params;
+    const url = `https://www.nettiauto.com/${make}/${model}`;
+
+    try {
+        const response = await axios.get(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0' }
+        });
+        const $ = cheerio.load(response.data);
+        let carsData = [];
+
+        $('script[type="application/ld+json"]').each((_, el) => {
+            try {
+                const json = JSON.parse($(el).html());
+                if (json.mainEntity && json.mainEntity.itemListElement) {
+                    carsData = json.mainEntity.itemListElement.map(e => ({
+                        name: e.item.name,
+                        price: e.item.offers ? e.item.offers.price : null,
+                        currency: e.item.offers ? e.item.offers.priceCurrency : 'EUR',
+                        mileageKm: e.item.mileageFromOdometer?.value || 0,
+                        fuelType: e.item.fuelType,
+                        transmission: e.item.vehicleTransmission,
+                        bodyType: e.item.bodyType,
+                        color: e.item.color,
+                        image: e.item.image,
+                        url: e.item.url
+                    }));
+                }
+            } catch(err) {}
+        });
+
+        res.json({ success: true, count: carsData.length, data: carsData });
+    } catch (e) {
+        res.status(500).json({ success: false, error: 'Tietojen haku epäonnistui' });
+    }
+});
+
+app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code></pre>
+            </div>
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button onclick="toggleServerModal(false)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-4 py-2 rounded-xl transition-colors">Sulje</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application JavaScript Logic -->
+    <script>
+        const RESULTS_PER_PAGE = 25;
+        let rawCarsData = [];
+        let currentPage = 1;
+        let totalPages = 1;
+        let totalResults = 0;
+
+        function setPreset(make, model) {
+            document.getElementById('makeInput').value = make;
+            document.getElementById('modelInput').value = model;
+        }
+
+        function toggleServerModal(show) {
+            const modal = document.getElementById('serverModal');
+            if (show) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        async function fetchCars(pageNumber = 1) {
+            const make = document.getElementById('makeInput').value.trim().toLowerCase();
+            const model = document.getElementById('modelInput').value.trim().toLowerCase();
+            const stateContainer = document.getElementById('stateContainer');
+            const listingsGrid = document.getElementById('listingsGrid');
+            const controlsToolbar = document.getElementById('controlsToolbar');
+            const paginationContainer = document.getElementById('paginationContainer');
+
+            if (!make || !model) {
+                alert('Syötä sekä merkki että malli.');
+                return;
+            }
+
+            stateContainer.classList.remove('hidden');
+            listingsGrid.classList.add('hidden');
+            controlsToolbar.classList.add('hidden');
+            if (paginationContainer) paginationContainer.classList.add('hidden');
+            
+            stateContainer.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12">
+                    <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <h3 class="text-base font-semibold text-slate-800">Haetaan Nettiautosta autoja haulle ${make} ${model}...</h3>
+                    <p class="text-xs text-slate-500 mt-1">Yhdistetään palvelimeen ja jäsennetään JSON-LD-skeemaa...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(
+                    `/api/cars/${encodeURIComponent(make)}/${encodeURIComponent(model)}?page=${pageNumber}&limit=${RESULTS_PER_PAGE}`
+                );
+                const json = await response.json();
+
+                if (!response.ok || !json.success || !Array.isArray(json.data)) {
+                    throw new Error(json.error || 'Autotietojen haku epäonnistui');
+                }
+
+                rawCarsData = json.data;
+                currentPage = json.page;
+                totalPages = json.totalPages;
+                totalResults = json.count;
+                document.getElementById('resultsHeading').textContent = `Hakutulokset: ${make.toUpperCase()} ${model.toUpperCase()}`;
+                
+                stateContainer.classList.add('hidden');
+                listingsGrid.classList.remove('hidden');
+                controlsToolbar.classList.remove('hidden');
+
+                applyFiltersAndSort();
+
+            } catch (error) {
+                stateContainer.classList.remove('hidden');
+                stateContainer.innerHTML = `
+                    <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-4 shadow-inner">
+                        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                    </div>
+                    <h3 class="text-base font-semibold text-slate-800 mb-1">Autojen haku epäonnistui</h3>
+                    <p class="text-sm text-slate-500 max-w-md mx-auto mb-4">Yhteydenotto palvelimeen epäonnistui. Varmista, että palvelin on käynnissä ja yritä uudelleen.</p>
+                    <button onclick="fetchCars()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-xl text-xs transition-colors">Yritä uudelleen</button>
+                `;
+            }
+        }
+
+        function goToPage(pageNumber) {
+            if (pageNumber < 1 || pageNumber > totalPages || pageNumber === currentPage) {
+                return;
+            }
+            fetchCars(pageNumber);
+        }
+
+        function getFilteredCars(keyword, sortBy) {
+            let filtered = rawCarsData.filter(car => {
+                const name = (car.name || '').toLowerCase();
+                const fuelType = (car.fuelType || '').toLowerCase();
+                const transmission = (car.transmission || '').toLowerCase();
+                const bodyType = (car.bodyType || '').toLowerCase();
+                return name.includes(keyword) || fuelType.includes(keyword) || transmission.includes(keyword) || bodyType.includes(keyword);
+            });
+
+            filtered.sort((a, b) => {
+                if (sortBy === 'price-asc') return (a.priceValue || 0) - (b.priceValue || 0);
+                if (sortBy === 'price-desc') return (b.priceValue || 0) - (a.priceValue || 0);
+                if (sortBy === 'year-desc') return extractYear(b.name) - extractYear(a.name);
+                if (sortBy === 'mileage-asc') return (a.mileageKm || 0) - (b.mileageKm || 0);
+                return 0;
+            });
+
+            return filtered;
+        }
+
+        function applyFiltersAndSort() {
+            const keyword = document.getElementById('keywordFilter').value.trim().toLowerCase();
+            const sortBy = document.getElementById('sortSelect').value;
+            const filtered = getFilteredCars(keyword, sortBy);
+
+            document.getElementById('resultsCountBadge').innerText = `${filtered.length} näytetään sivulla / ${totalResults} yhteensä • Sivu ${currentPage}/${totalPages}`;
+            renderListings(filtered);
+            renderPaginationControls(totalPages);
+        }
+
+        function renderPaginationControls(totalPages) {
+            const paginationContainer = document.getElementById('paginationContainer');
+            if (!paginationContainer) {
+                return;
+            }
+
+            if (totalPages <= 1) {
+                paginationContainer.innerHTML = '';
+                paginationContainer.classList.add('hidden');
+                return;
+            }
+
+            const pages = [];
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(`
+                    <button
+                        type="button"
+                        onclick="goToPage(${i})"
+                        class="${i === currentPage ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'} border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                    >
+                        ${i}
+                    </button>
+                `);
+            }
+
+            paginationContainer.innerHTML = `
+                <div class="flex items-center justify-center gap-2 flex-wrap">
+                    <button type="button" onclick="goToPage(${Math.max(1, currentPage - 1)})" class="bg-white border border-slate-200 text-slate-600 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-slate-100 transition-colors ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${currentPage === 1 ? 'disabled' : ''}>
+                        Edellinen
+                    </button>
+                    ${pages.join('')}
+                    <button type="button" onclick="goToPage(${Math.min(totalPages, currentPage + 1)})" class="bg-white border border-slate-200 text-slate-600 rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-slate-100 transition-colors ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}" ${currentPage === totalPages ? 'disabled' : ''}>
+                        Seuraava
+                    </button>
+                </div>
+            `;
+            paginationContainer.classList.remove('hidden');
+        }
+
+        function extractYear(name) {
+            const match = (name || '').match(/\((\d{4})\)/);
+            return match ? parseInt(match[1], 10) : 2000;
+        }
+
+        function renderListings(cars) {
+            const grid = document.getElementById('listingsGrid');
+            if (cars.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-slate-500 text-sm">
+                        Ei hakuehtoja vastaavia autoja löytynyt.
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = cars.map(car => {
+                const year = extractYear(car.name);
+                const priceValue = Number(car.priceValue ?? car.price ?? 0);
+                const priceFormatted = priceValue ? `${priceValue.toLocaleString('fi-FI')} €` : 'Ei hintatietoja';
+                const mileageFormatted = car.mileageKm ? `${Number(car.mileageKm).toLocaleString('fi-FI')} km` : 'Ei ilmoitettu';
+                const imageUrl = car.image || 'https://placehold.co/600x400/f1f5f9/64748b?text=Ei+kuvaa';
+                const carUrl = car.url || 'https://www.nettiauto.com';
+
+                return `
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                        <div>
+                            <div class="relative h-48 bg-slate-100 overflow-hidden">
+                                <img src="${imageUrl}" alt="${car.name}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.src='https://placehold.co/600x400/f1f5f9/64748b?text=Kuva+ei+saatavilla'">
+                                <div class="absolute top-3 right-3 bg-slate-900/70 backdrop-blur-md text-white text-xs font-semibold px-2.5 py-1 rounded-lg">
+                                    ${year}
+                                </div>
+                            </div>
+
+                            <div class="p-5">
+                                <h3 class="font-bold text-slate-900 text-base mb-1 line-clamp-1">${car.name}</h3>
+                                <div class="text-xl font-bold text-indigo-600 mb-4">${priceFormatted}</div>
+
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div class="bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-slate-600">
+                                        <i class="fa-solid fa-gauge text-slate-400"></i>
+                                        <span class="truncate">${mileageFormatted}</span>
+                                    </div>
+                                    <div class="bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-slate-600">
+                                        <i class="fa-solid fa-gas-pump text-slate-400"></i>
+                                        <span class="truncate">${car.fuelType || 'Ei määritelty'}</span>
+                                    </div>
+                                    <div class="bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-slate-600">
+                                        <i class="fa-solid fa-gears text-slate-400"></i>
+                                        <span class="truncate">${car.transmission || 'Ei määritelty'}</span>
+                                    </div>
+                                    <div class="bg-slate-50 border border-slate-100 px-2.5 py-1.5 rounded-xl flex items-center space-x-2 text-slate-600">
+                                        <i class="fa-solid fa-palette text-slate-400"></i>
+                                        <span class="truncate">${car.color || 'Ei määritelty'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-5 pt-0">
+                            <a href="${carUrl}" target="_blank" class="w-full block text-center bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700 text-xs font-semibold py-2.5 rounded-xl transition-colors border border-slate-200">
+                                <span>Katso Nettiautossa</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square ml-1.5 text-[10px]"></i>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
+
+</body>
+</html>
