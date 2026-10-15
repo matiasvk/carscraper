@@ -254,6 +254,13 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
         let totalPages = 1;
         let totalResults = 0;
         let searchAnalysis = null;
+        let analysisStatus = 'idle';
+        let analysisProgress = { scannedSourcePages: 0, totalSourcePages: 0 };
+        let activeMake = '';
+        let activeModel = '';
+        let activeSearchId = 0;
+        let pageRequestId = 0;
+        let analysisPollTimer = null;
 
         function setPreset(make, model) {
             document.getElementById('makeInput').value = make;
@@ -283,25 +290,38 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
                 return;
             }
 
-            stateContainer.classList.remove('hidden');
-            listingsGrid.classList.add('hidden');
-            controlsToolbar.classList.add('hidden');
-            if (paginationContainer) paginationContainer.classList.add('hidden');
-            analysisPanel.classList.add('hidden');
-            
-            stateContainer.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-12">
-                    <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <h3 class="text-base font-semibold text-slate-800">Haetaan Nettiautosta autoja haulle ${make} ${model}...</h3>
-                    <p class="text-xs text-slate-500 mt-1">Yhdistetään palvelimeen ja jäsennetään JSON-LD-skeemaa...</p>
-                </div>
-            `;
+            const isNewSearch = make !== activeMake || model !== activeModel || rawCarsData.length === 0;
+            const requestId = ++pageRequestId;
+
+            if (isNewSearch) {
+                activeMake = make;
+                activeModel = model;
+                activeSearchId++;
+                clearTimeout(analysisPollTimer);
+                rawCarsData = [];
+                stateContainer.classList.remove('hidden');
+                listingsGrid.classList.add('hidden');
+                controlsToolbar.classList.add('hidden');
+                if (paginationContainer) paginationContainer.classList.add('hidden');
+                analysisPanel.classList.add('hidden');
+                stateContainer.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-12">
+                        <div class="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <h3 class="text-base font-semibold text-slate-800">Haetaan Nettiautosta autoja haulle ${make} ${model}...</h3>
+                        <p class="text-xs text-slate-500 mt-1">Ladataan ensimmäisiä ilmoituksia. Koko haun analyysi jatkuu taustalla.</p>
+                    </div>
+                `;
+            } else {
+                listingsGrid.classList.add('opacity-50');
+                if (paginationContainer) paginationContainer.classList.add('pointer-events-none', 'opacity-50');
+            }
 
             try {
                 const response = await fetch(
                     `/api/cars/${encodeURIComponent(make)}/${encodeURIComponent(model)}?page=${pageNumber}&limit=${RESULTS_PER_PAGE}`
                 );
                 const json = await response.json();
+                if (requestId !== pageRequestId) return;
 
                 if (!response.ok || !json.success || !Array.isArray(json.data)) {
                     throw new Error(json.error || 'Autotietojen haku epäonnistui');
@@ -312,26 +332,40 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
                 totalPages = json.totalPages;
                 totalResults = json.count;
                 searchAnalysis = json.analysis;
+                analysisStatus = json.analysisStatus;
+                analysisProgress = { ...(json.analysisProgress || analysisProgress), error: json.analysisError };
                 document.getElementById('resultsHeading').textContent = `Hakutulokset: ${make.toUpperCase()} ${model.toUpperCase()}`;
                 
                 stateContainer.classList.add('hidden');
                 listingsGrid.classList.remove('hidden');
                 controlsToolbar.classList.remove('hidden');
                 analysisPanel.classList.remove('hidden');
+                listingsGrid.classList.remove('opacity-50');
+                if (paginationContainer) paginationContainer.classList.remove('pointer-events-none', 'opacity-50');
 
                 renderAnalysis();
                 applyFiltersAndSort();
+                if (analysisStatus === 'analyzing') {
+                    pollSearchAnalysis(make, model, activeSearchId);
+                }
 
             } catch (error) {
-                stateContainer.classList.remove('hidden');
-                stateContainer.innerHTML = `
-                    <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-4 shadow-inner">
-                        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
-                    </div>
-                    <h3 class="text-base font-semibold text-slate-800 mb-1">Autojen haku epäonnistui</h3>
-                    <p class="text-sm text-slate-500 max-w-md mx-auto mb-4">Yhteydenotto palvelimeen epäonnistui. Varmista, että palvelin on käynnissä ja yritä uudelleen.</p>
-                    <button onclick="fetchCars()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-xl text-xs transition-colors">Yritä uudelleen</button>
-                `;
+                if (requestId !== pageRequestId) return;
+                listingsGrid.classList.remove('opacity-50');
+                if (paginationContainer) paginationContainer.classList.remove('pointer-events-none', 'opacity-50');
+                if (isNewSearch) {
+                    stateContainer.classList.remove('hidden');
+                    stateContainer.innerHTML = `
+                        <div class="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-4 shadow-inner">
+                            <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                        </div>
+                        <h3 class="text-base font-semibold text-slate-800 mb-1">Autojen haku epäonnistui</h3>
+                        <p class="text-sm text-slate-500 max-w-md mx-auto mb-4">Yhteydenotto palvelimeen epäonnistui. Varmista, että palvelin on käynnissä ja yritä uudelleen.</p>
+                        <button onclick="fetchCars()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-xl text-xs transition-colors">Yritä uudelleen</button>
+                    `;
+                } else {
+                    renderAnalysis(`Sivun ${pageNumber} lataaminen epäonnistui. ${error.message}`);
+                }
             }
         }
 
@@ -380,26 +414,79 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
             return Number.isFinite(value) ? `${Math.round(value).toLocaleString('fi-FI')} km` : 'Ei kilometritietoa';
         }
 
-        function renderAnalysis() {
+        function renderAnalysis(message = '') {
             const analysis = searchAnalysis;
-            document.getElementById('analysisSampleSize').textContent =
-                `Perustuu ${totalResults} ilmoitukseen. Hinta- ja kilometrikeskiarvot huomioivat vain ilmoitukset, joissa kyseinen tieto on saatavilla.`;
+            const sampleSize = document.getElementById('analysisSampleSize');
+            if (message) {
+                sampleSize.textContent = message;
+            } else if (!analysis && analysisStatus === 'analyzing') {
+                sampleSize.textContent =
+                    `Lasketaan kaikkien tulosten analyysiä taustalla (${analysisProgress.scannedSourcePages}/${analysisProgress.totalSourcePages} lähdesivua). Tuloksia voi selata odotuksen aikana.`;
+            } else if (!analysis && analysisStatus === 'failed') {
+                sampleSize.textContent = `Koko haun analyysi epäonnistui: ${analysisProgress.error || 'Kaikkia Nettiauton sivuja ei saatu ladattua.'}`;
+            } else {
+                sampleSize.textContent =
+                    `Perustuu ${totalResults} ilmoitukseen. Hinta- ja kilometrikeskiarvot huomioivat vain ilmoitukset, joissa kyseinen tieto on saatavilla.`;
+            }
             document.getElementById('averagePrice').textContent =
-                analysis && analysis.averagePrice != null ? formatPrice(analysis.averagePrice) : 'Ei hintatietoja';
+                analysis && analysis.averagePrice != null ? formatPrice(analysis.averagePrice) : analysisStatus === 'analyzing' ? 'Lasketaan…' : 'Ei hintatietoja';
             document.getElementById('averageMileage').textContent =
-                analysis && analysis.averageMileageKm != null ? formatMileage(analysis.averageMileageKm) : 'Ei kilometrimäärätietoja';
+                analysis && analysis.averageMileageKm != null ? formatMileage(analysis.averageMileageKm) : analysisStatus === 'analyzing' ? 'Lasketaan…' : 'Ei kilometrimäärätietoja';
 
             const cheapest = analysis?.cheapest;
             document.getElementById('cheapestPrice').textContent =
-                cheapest ? formatPrice(cheapest.priceValue) : 'Ei hintatietoja';
+                cheapest ? formatPrice(cheapest.priceValue) : analysisStatus === 'analyzing' ? 'Etsitään…' : 'Ei hintatietoja';
             document.getElementById('cheapestDetails').textContent =
                 cheapest ? `${cheapest.name} · ${formatMileage(cheapest.mileageKm)}` : '';
 
             const mostExpensive = analysis?.mostExpensive;
             document.getElementById('mostExpensivePrice').textContent =
-                mostExpensive ? formatPrice(mostExpensive.priceValue) : 'Ei hintatietoja';
+                mostExpensive ? formatPrice(mostExpensive.priceValue) : analysisStatus === 'analyzing' ? 'Etsitään…' : 'Ei hintatietoja';
             document.getElementById('mostExpensiveDetails').textContent =
                 mostExpensive ? `${mostExpensive.name} · ${formatMileage(mostExpensive.mileageKm)}` : '';
+        }
+
+        async function pollSearchAnalysis(make, model, searchId) {
+            clearTimeout(analysisPollTimer);
+
+            try {
+                const response = await fetch(
+                    `/api/cars/${encodeURIComponent(make)}/${encodeURIComponent(model)}/analysis`
+                );
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Analyysin tilan haku epäonnistui');
+                }
+                if (searchId !== activeSearchId) return;
+
+                analysisStatus = result.status;
+                analysisProgress = {
+                    scannedSourcePages: result.scannedSourcePages,
+                    totalSourcePages: result.totalSourcePages,
+                    error: result.error
+                };
+                if (result.status === 'complete') {
+                    totalResults = result.count;
+                    totalPages = Math.max(1, Math.ceil(totalResults / RESULTS_PER_PAGE));
+                    searchAnalysis = result.analysis;
+                    renderAnalysis();
+                    applyFiltersAndSort();
+                    return;
+                }
+
+                if (result.status === 'failed') {
+                    renderAnalysis();
+                    return;
+                }
+
+                renderAnalysis();
+                analysisPollTimer = setTimeout(() => pollSearchAnalysis(make, model, searchId), 2500);
+            } catch (error) {
+                if (searchId !== activeSearchId) return;
+                analysisStatus = 'failed';
+                analysisProgress.error = error.message;
+                renderAnalysis();
+            }
         }
 
         function renderPaginationControls(totalPages) {
@@ -414,17 +501,28 @@ app.listen(3000, () => console.log('Palvelin käynnissä portissa 3000'));</code
                 return;
             }
 
+            const pageNumbers = new Set([1, totalPages]);
+            for (let page = Math.max(1, currentPage - 2); page <= Math.min(totalPages, currentPage + 2); page++) {
+                pageNumbers.add(page);
+            }
+            const orderedPages = [...pageNumbers].sort((a, b) => a - b);
             const pages = [];
-            for (let i = 1; i <= totalPages; i++) {
+            let previousPage = 0;
+            for (const page of orderedPages) {
+                if (page - previousPage > 1) {
+                    pages.push('<span class="px-1 text-slate-400" aria-hidden="true">…</span>');
+                }
                 pages.push(`
                     <button
                         type="button"
-                        onclick="goToPage(${i})"
-                        class="${i === currentPage ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'} border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+                        onclick="goToPage(${page})"
+                        aria-current="${page === currentPage ? 'page' : 'false'}"
+                        class="${page === currentPage ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'} border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
                     >
-                        ${i}
+                        ${page}
                     </button>
                 `);
+                previousPage = page;
             }
 
             paginationContainer.innerHTML = `
