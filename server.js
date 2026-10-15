@@ -26,7 +26,7 @@ app.get('/api/cars/:make/:model', async (req, res) => {
     const { make, model } = req.params;
     const url = `https://www.nettiauto.com/${make}/${model}`;
     const page = Math.max(1, Number(req.query.page) || 1);
-    const limit = Math.min(25, Math.max(1, Number(req.query.limit) || 25));
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 50));
 
     try {
         const response = await axios.get(url, {
